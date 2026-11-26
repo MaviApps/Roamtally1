@@ -1,0 +1,396 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Hardened Global Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isTripMember(tripId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/trips/$(tripId))
+        && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.memberIds;
+    }
+
+    function isTripMemberAfter(tripId) {
+      return isSignedIn()
+        && existsAfter(/databases/$(database)/documents/trips/$(tripId))
+        && request.auth.uid in getAfter(/databases/$(database)/documents/trips/$(tripId)).data.memberIds;
+    }
+
+    function isTripOwner(tripId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/trips/$(tripId))
+        && get(/databases/$(database)/documents/trips/$(tripId)).data.ownerId == request.auth.uid;
+    }
+
+    function isValidMascot(m) {
+      return m in ['mavi-pelican', 'pip-otter', 'sunny-fox', 'milo-bear'];
+    }
+
+    function isValidLicenseTier(t) {
+      return t in ['free', 'solo', 'group5'];
+    }
+
+    // 3. Entity Validation Blueprints
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'displayName', 'mascotId', 'themeAccent', 'licenseTier', 'referralCode', 'referralCount', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'mascotId', 'themeAccent', 'licenseTier', 'referralCode', 'referredBy', 'referralCount', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid == userId && isValidId(data.uid)
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80
+        && data.mascotId is string && isValidMascot(data.mascotId)
+        && data.themeAccent is string && data.themeAccent in ['coastal-teal', 'sunset-coral']
+        && data.licenseTier is string && isValidLicenseTier(data.licenseTier)
+        && data.referralCode is string && data.referralCode.size() >= 4 && data.referralCode.size() <= 24 && data.referralCode.matches('^[a-zA-Z0-9_\\-]+$')
+        && (!data.keys().hasAny(['referredBy']) || (data.referredBy is string && data.referredBy.size() <= 24))
+        && data.referralCount is number && data.referralCount >= 0 && data.referralCount <= 10000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivateInfo(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid == userId && isValidId(data.uid)
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidUserBilling(data, userId) {
+      return data.keys().hasAll(['uid', 'licenseTier', 'licensePricePaid', 'monthlySyncActive', 'monthlySyncPrice', 'lifetimeVaultUnlocked', 'lifetimeVaultPrice', 'historyRetentionDays', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'licenseTier', 'licensePricePaid', 'monthlySyncActive', 'monthlySyncPrice', 'lifetimeVaultUnlocked', 'lifetimeVaultPrice', 'historyRetentionDays', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid == userId && isValidId(data.uid)
+        && data.licenseTier is string && isValidLicenseTier(data.licenseTier)
+        && data.licensePricePaid is number && data.licensePricePaid >= 0 && data.licensePricePaid <= 100
+        && data.monthlySyncActive is bool
+        && data.monthlySyncPrice is number && data.monthlySyncPrice >= 0 && data.monthlySyncPrice <= 50
+        && data.lifetimeVaultUnlocked is bool
+        && data.lifetimeVaultPrice is number && data.lifetimeVaultPrice >= 0 && data.lifetimeVaultPrice <= 100
+        && data.historyRetentionDays is number && data.historyRetentionDays >= 0 && data.historyRetentionDays <= 36500
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidTrip(data, tripId) {
+      return data.keys().hasAll(['tripId', 'ownerId', 'memberIds', 'title', 'origin', 'destination', 'startDate', 'endDate', 'currency', 'totalBudget', 'joinCode', 'status', 'isHistoricalArchive', 'weatherSummary', 'flightUpdateSummary', 'touristSpots', 'requiredDocs', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['tripId', 'ownerId', 'memberIds', 'title', 'origin', 'destination', 'startDate', 'endDate', 'currency', 'totalBudget', 'joinCode', 'status', 'isHistoricalArchive', 'weatherSummary', 'flightUpdateSummary', 'touristSpots', 'requiredDocs', 'createdAt', 'updatedAt'])
+        && data.tripId is string && data.tripId == tripId && isValidId(data.tripId)
+        && data.ownerId is string && isValidId(data.ownerId)
+        && data.memberIds is list && data.memberIds.size() >= 1 && data.memberIds.size() <= 5 && data.memberIds[0] is string
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 120
+        && data.origin is string && data.origin.size() >= 1 && data.origin.size() <= 100
+        && data.destination is string && data.destination.size() >= 1 && data.destination.size() <= 100
+        && data.startDate is string && data.startDate.size() >= 4 && data.startDate.size() <= 32
+        && data.endDate is string && data.endDate.size() >= 4 && data.endDate.size() <= 32
+        && data.currency is string && data.currency.size() >= 3 && data.currency.size() <= 8
+        && data.totalBudget is number && data.totalBudget >= 0 && data.totalBudget <= 10000000
+        && data.joinCode is string && data.joinCode.size() >= 4 && data.joinCode.size() <= 16
+        && data.status is string && data.status in ['planning', 'active', 'completed']
+        && data.isHistoricalArchive is bool
+        && data.weatherSummary is string && data.weatherSummary.size() <= 800
+        && data.flightUpdateSummary is string && data.flightUpdateSummary.size() <= 800
+        && data.touristSpots is list && data.touristSpots.size() <= 12
+        && data.requiredDocs is list && data.requiredDocs.size() <= 15
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidTripMember(data, tripId, memberId) {
+      return data.keys().hasAll(['memberId', 'tripId', 'displayName', 'mascotId', 'role', 'budgetLimit', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['memberId', 'tripId', 'displayName', 'mascotId', 'role', 'budgetLimit', 'createdAt', 'updatedAt'])
+        && data.memberId is string && data.memberId == memberId && isValidId(data.memberId)
+        && data.tripId is string && data.tripId == tripId && isValidId(data.tripId)
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80
+        && data.mascotId is string && isValidMascot(data.mascotId)
+        && data.role is string && data.role in ['organizer', 'traveler']
+        && data.budgetLimit is number && data.budgetLimit >= 0 && data.budgetLimit <= 1000000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidItineraryItem(data, tripId, itemId) {
+      return data.keys().hasAll(['itemId', 'tripId', 'title', 'category', 'dateTime', 'location', 'notes', 'reminderMinutesBefore', 'cost', 'paidByMemberId', 'splitMethod', 'linkedExpenseId', 'status', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['itemId', 'tripId', 'title', 'category', 'dateTime', 'location', 'notes', 'reminderMinutesBefore', 'cost', 'paidByMemberId', 'splitMethod', 'linkedExpenseId', 'status', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.itemId is string && data.itemId == itemId && isValidId(data.itemId)
+        && data.tripId is string && data.tripId == tripId && isValidId(data.tripId)
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 140
+        && data.category is string && data.category in ['flight', 'train', 'lodging', 'activity', 'dining', 'transport']
+        && data.dateTime is string && data.dateTime.size() >= 1 && data.dateTime.size() <= 64
+        && data.location is string && data.location.size() <= 140
+        && data.notes is string && data.notes.size() <= 600
+        && data.reminderMinutesBefore is number && data.reminderMinutesBefore >= 0 && data.reminderMinutesBefore <= 43200
+        && data.cost is number && data.cost >= 0 && data.cost <= 1000000
+        && data.paidByMemberId is string && data.paidByMemberId.size() >= 1 && data.paidByMemberId.size() <= 128
+        && data.splitMethod is string && data.splitMethod in ['equal', 'exact', 'percentage']
+        && data.linkedExpenseId is string && data.linkedExpenseId.size() <= 128
+        && data.status is string && data.status in ['scheduled', 'boarding', 'completed']
+        && data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidExpenseItem(data, tripId, expenseId) {
+      return data.keys().hasAll(['expenseId', 'tripId', 'title', 'category', 'amount', 'currency', 'paidByMemberId', 'splitMethod', 'shares', 'linkedItineraryId', 'date', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['expenseId', 'tripId', 'title', 'category', 'amount', 'currency', 'paidByMemberId', 'splitMethod', 'shares', 'linkedItineraryId', 'date', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.expenseId is string && data.expenseId == expenseId && isValidId(data.expenseId)
+        && data.tripId is string && data.tripId == tripId && isValidId(data.tripId)
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 140
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 40
+        && data.amount is number && data.amount >= 0 && data.amount <= 1000000
+        && data.currency is string && data.currency.size() >= 3 && data.currency.size() <= 8
+        && data.paidByMemberId is string && data.paidByMemberId.size() >= 1 && data.paidByMemberId.size() <= 128
+        && data.splitMethod is string && data.splitMethod in ['equal', 'exact', 'percentage', 'settlement']
+        && data.shares is list && data.shares.size() >= 1 && data.shares.size() <= 5 && data.shares[0] is map
+        && data.linkedItineraryId is string && data.linkedItineraryId.size() <= 128
+        && data.date is string && data.date.size() >= 1 && data.date.size() <= 40
+        && data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidEncryptedDoc(data, tripId, docId) {
+      return data.keys().hasAll(['docId', 'tripId', 'senderUid', 'senderName', 'docCategory', 'title', 'ciphertext', 'iv', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['docId', 'tripId', 'senderUid', 'senderName', 'docCategory', 'title', 'ciphertext', 'iv', 'createdAt', 'updatedAt'])
+        && data.docId is string && data.docId == docId && isValidId(data.docId)
+        && data.tripId is string && data.tripId == tripId && isValidId(data.tripId)
+        && data.senderUid is string && data.senderUid.size() >= 1 && data.senderUid.size() <= 128
+        && data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 80
+        && data.docCategory is string && data.docCategory in ['passport', 'visa', 'insurance', 'customs', 'ticket', 'note']
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 120
+        && data.ciphertext is string && data.ciphertext.size() >= 1 && data.ciphertext.size() <= 8000
+        && data.iv is string && data.iv.size() >= 1 && data.iv.size() <= 128
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidOfflinePack(data, tripId, packId) {
+      return data.keys().hasAll(['packId', 'tripId', 'destination', 'centerLat', 'centerLng', 'zoomLevel', 'pins', 'downloadedByUid', 'sizeKb', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['packId', 'tripId', 'destination', 'centerLat', 'centerLng', 'zoomLevel', 'pins', 'downloadedByUid', 'sizeKb', 'createdAt', 'updatedAt'])
+        && data.packId is string && data.packId == packId && isValidId(data.packId)
+        && data.tripId is string && data.tripId == tripId && isValidId(data.tripId)
+        && data.destination is string && data.destination.size() >= 1 && data.destination.size() <= 100
+        && data.centerLat is number && data.centerLat >= -90 && data.centerLat <= 90
+        && data.centerLng is number && data.centerLng >= -180 && data.centerLng <= 180
+        && data.zoomLevel is number && data.zoomLevel >= 1 && data.zoomLevel <= 22
+        && data.pins is list && data.pins.size() <= 20
+        && data.downloadedByUid is string && data.downloadedByUid.size() >= 1 && data.downloadedByUid.size() <= 128
+        && data.sizeKb is number && data.sizeKb >= 0 && data.sizeKb <= 500000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // 4. Collection Rules
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow list: if false;
+      allow create: if isValidId(userId) && isVerifiedUser() && isOwner(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId) && isVerifiedUser() && isOwner(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'mascotId', 'themeAccent', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['licenseTier', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['referralCount', 'referredBy', 'updatedAt'])
+        );
+      allow delete: if false;
+
+      match /private/{docId} {
+        allow get: if isValidId(userId) && isValidId(docId) && isOwner(userId);
+        allow list: if false;
+        allow create: if isValidId(userId) && isValidId(docId) && docId == 'info'
+          && isVerifiedUser() && isOwner(userId)
+          && isValidUserPrivateInfo(incoming(), userId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(userId) && isValidId(docId) && docId == 'info'
+          && isVerifiedUser() && isOwner(userId)
+          && isValidUserPrivateInfo(incoming(), userId)
+          && incoming().uid == existing().uid
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'updatedAt']);
+        allow delete: if false;
+      }
+
+      match /billing/{docId} {
+        allow get: if isValidId(userId) && isValidId(docId) && isOwner(userId);
+        allow list: if false;
+        allow create: if isValidId(userId) && isValidId(docId) && docId == 'status'
+          && isVerifiedUser() && isOwner(userId)
+          && isValidUserBilling(incoming(), userId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(userId) && isValidId(docId) && docId == 'status'
+          && isVerifiedUser() && isOwner(userId)
+          && isValidUserBilling(incoming(), userId)
+          && incoming().uid == existing().uid
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            incoming().diff(existing()).affectedKeys().hasOnly(['licenseTier', 'licensePricePaid', 'updatedAt']) ||
+            incoming().diff(existing()).affectedKeys().hasOnly(['monthlySyncActive', 'updatedAt']) ||
+            incoming().diff(existing()).affectedKeys().hasOnly(['monthlySyncActive', 'monthlySyncPrice', 'historyRetentionDays', 'updatedAt']) ||
+            incoming().diff(existing()).affectedKeys().hasOnly(['lifetimeVaultUnlocked', 'updatedAt'])
+          );
+        allow delete: if false;
+      }
+    }
+
+    match /trips/{tripId} {
+      allow get: if isValidId(tripId) && isSignedIn() && request.auth.uid in existing().memberIds;
+      allow list: if isSignedIn() && request.auth.uid in existing().memberIds;
+      allow create: if isValidId(tripId) && isVerifiedUser()
+        && isValidTrip(incoming(), tripId)
+        && incoming().ownerId == request.auth.uid
+        && request.auth.uid in incoming().memberIds
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(tripId) && isVerifiedUser()
+        && request.auth.uid in existing().memberIds
+        && isValidTrip(incoming(), tripId)
+        && incoming().tripId == existing().tripId
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Action: Refresh travel intelligence (weather, flights, spots, docs)
+          incoming().diff(existing()).affectedKeys().hasOnly(['weatherSummary', 'flightUpdateSummary', 'touristSpots', 'requiredDocs', 'updatedAt']) ||
+          // Action: Update trip details or budget
+          (existing().ownerId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'origin', 'destination', 'startDate', 'endDate', 'totalBudget', 'status', 'isHistoricalArchive', 'updatedAt'])) ||
+          // Action: Owner manages member access list
+          (existing().ownerId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['memberIds', 'updatedAt']))
+        );
+      allow delete: if isValidId(tripId) && isVerifiedUser() && existing().ownerId == request.auth.uid;
+
+      match /members/{memberId} {
+        allow get: if isValidId(tripId) && isValidId(memberId) && isTripMember(tripId);
+        allow list: if isValidId(tripId) && isTripMember(tripId);
+        allow create: if isValidId(tripId) && isValidId(memberId) && isVerifiedUser()
+          && isValidTripMember(incoming(), tripId, memberId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && isTripMemberAfter(tripId);
+        allow update: if isValidId(tripId) && isValidId(memberId) && isVerifiedUser()
+          && isValidTripMember(incoming(), tripId, memberId)
+          && incoming().memberId == existing().memberId
+          && incoming().tripId == existing().tripId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && isTripMember(tripId)
+          && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'mascotId', 'budgetLimit', 'role', 'updatedAt']);
+        allow delete: if isValidId(tripId) && isValidId(memberId) && isVerifiedUser() && isTripOwner(tripId);
+      }
+
+      match /itinerary/{itemId} {
+        allow get: if isValidId(tripId) && isValidId(itemId) && isTripMember(tripId);
+        allow list: if isValidId(tripId) && isTripMember(tripId);
+        allow create: if isValidId(tripId) && isValidId(itemId) && isVerifiedUser()
+          && isValidItineraryItem(incoming(), tripId, itemId)
+          && incoming().createdBy == request.auth.uid
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && isTripMemberAfter(tripId);
+        allow update: if isValidId(tripId) && isValidId(itemId) && isVerifiedUser()
+          && isValidItineraryItem(incoming(), tripId, itemId)
+          && incoming().itemId == existing().itemId
+          && incoming().tripId == existing().tripId
+          && incoming().createdBy == existing().createdBy
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && isTripMember(tripId)
+          && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'category', 'dateTime', 'location', 'notes', 'reminderMinutesBefore', 'cost', 'paidByMemberId', 'splitMethod', 'linkedExpenseId', 'status', 'updatedAt']);
+        allow delete: if isValidId(tripId) && isValidId(itemId) && isVerifiedUser() && isTripMember(tripId);
+      }
+
+      match /expenses/{expenseId} {
+        allow get: if isValidId(tripId) && isValidId(expenseId) && isTripMember(tripId);
+        allow list: if isValidId(tripId) && isTripMember(tripId);
+        allow create: if isValidId(tripId) && isValidId(expenseId) && isVerifiedUser()
+          && isValidExpenseItem(incoming(), tripId, expenseId)
+          && incoming().createdBy == request.auth.uid
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && isTripMemberAfter(tripId);
+        allow update: if isValidId(tripId) && isValidId(expenseId) && isVerifiedUser()
+          && isValidExpenseItem(incoming(), tripId, expenseId)
+          && incoming().expenseId == existing().expenseId
+          && incoming().tripId == existing().tripId
+          && incoming().createdBy == existing().createdBy
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && isTripMember(tripId)
+          && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'category', 'amount', 'currency', 'paidByMemberId', 'splitMethod', 'shares', 'linkedItineraryId', 'date', 'updatedAt']);
+        allow delete: if isValidId(tripId) && isValidId(expenseId) && isVerifiedUser() && isTripMember(tripId);
+      }
+
+      match /encryptedDocs/{docId} {
+        allow get: if isValidId(tripId) && isValidId(docId) && isTripMember(tripId);
+        allow list: if isValidId(tripId) && isTripMember(tripId);
+        allow create: if isValidId(tripId) && isValidId(docId) && isVerifiedUser()
+          && isValidEncryptedDoc(incoming(), tripId, docId)
+          && incoming().senderUid == request.auth.uid
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && isTripMemberAfter(tripId);
+        allow update: if false;
+        allow delete: if isValidId(tripId) && isValidId(docId) && isVerifiedUser()
+          && isTripMember(tripId)
+          && (existing().senderUid == request.auth.uid || isTripOwner(tripId));
+      }
+
+      match /offlinePacks/{packId} {
+        allow get: if isValidId(tripId) && isValidId(packId) && isTripMember(tripId);
+        allow list: if isValidId(tripId) && isTripMember(tripId);
+        allow create: if isValidId(tripId) && isValidId(packId) && isVerifiedUser()
+          && isValidOfflinePack(incoming(), tripId, packId)
+          && incoming().downloadedByUid == request.auth.uid
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && isTripMemberAfter(tripId);
+        allow update: if isValidId(tripId) && isValidId(packId) && isVerifiedUser()
+          && isValidOfflinePack(incoming(), tripId, packId)
+          && incoming().packId == existing().packId
+          && incoming().tripId == existing().tripId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && isTripMember(tripId)
+          && incoming().diff(existing()).affectedKeys().hasOnly(['destination', 'centerLat', 'centerLng', 'zoomLevel', 'pins', 'downloadedByUid', 'sizeKb', 'updatedAt']);
+        allow delete: if isValidId(tripId) && isValidId(packId) && isVerifiedUser() && isTripMember(tripId);
+      }
+    }
+  }
+}

@@ -1,0 +1,216 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Public-safe user profile, mascot companion customization, license tier, and referral stats.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "mascotId": { "type": "string", "enum": ["mavi-pelican", "pip-otter", "sunny-fox", "milo-bear"] },
+        "themeAccent": { "type": "string", "enum": ["coastal-teal", "sunset-coral"] },
+        "licenseTier": { "type": "string", "enum": ["free", "solo", "group5"] },
+        "referralCode": { "type": "string", "minLength": 4, "maxLength": 24, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "referredBy": { "type": "string", "minLength": 0, "maxLength": 24 },
+        "referralCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "mascotId", "themeAccent", "licenseTier", "referralCode", "referralCount", "createdAt", "updatedAt"]
+    },
+    "UserPrivateInfo": {
+      "title": "UserPrivateInfo",
+      "description": "Isolated PII record for the user (email).",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "minLength": 3, "maxLength": 160 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "createdAt", "updatedAt"]
+    },
+    "UserBilling": {
+      "title": "UserBilling",
+      "description": "License purchase, monthly cloud sync subscription, and 6-month+ lifetime vault access state.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "licenseTier": { "type": "string", "enum": ["free", "solo", "group5"] },
+        "licensePricePaid": { "type": "number" },
+        "monthlySyncActive": { "type": "boolean" },
+        "monthlySyncPrice": { "type": "number" },
+        "lifetimeVaultUnlocked": { "type": "boolean" },
+        "lifetimeVaultPrice": { "type": "number" },
+        "historyRetentionDays": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "licenseTier", "licensePricePaid", "monthlySyncActive", "monthlySyncPrice", "lifetimeVaultUnlocked", "lifetimeVaultPrice", "historyRetentionDays", "createdAt", "updatedAt"]
+    },
+    "Trip": {
+      "title": "Trip",
+      "description": "Collaborative travel trip with dates, destination intelligence, budget, and bounded member UIDs.",
+      "type": "object",
+      "properties": {
+        "tripId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "memberIds": { "type": "array", "description": "Bounded up to 5 member UIDs matching Group License limit." },
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "origin": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "destination": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "startDate": { "type": "string", "minLength": 4, "maxLength": 32 },
+        "endDate": { "type": "string", "minLength": 4, "maxLength": 32 },
+        "currency": { "type": "string", "minLength": 3, "maxLength": 8 },
+        "totalBudget": { "type": "number" },
+        "joinCode": { "type": "string", "minLength": 4, "maxLength": 16 },
+        "status": { "type": "string", "enum": ["planning", "active", "completed"] },
+        "isHistoricalArchive": { "type": "boolean" },
+        "weatherSummary": { "type": "string", "minLength": 0, "maxLength": 800 },
+        "flightUpdateSummary": { "type": "string", "minLength": 0, "maxLength": 800 },
+        "touristSpots": { "type": "array" },
+        "requiredDocs": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tripId", "ownerId", "memberIds", "title", "origin", "destination", "startDate", "endDate", "currency", "totalBudget", "joinCode", "status", "isHistoricalArchive", "weatherSummary", "flightUpdateSummary", "touristSpots", "requiredDocs", "createdAt", "updatedAt"]
+    },
+    "TripMember": {
+      "title": "TripMember",
+      "description": "Traveler inside a trip with individual budget tracking and cartoon mascot.",
+      "type": "object",
+      "properties": {
+        "memberId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "tripId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "mascotId": { "type": "string", "enum": ["mavi-pelican", "pip-otter", "sunny-fox", "milo-bear"] },
+        "role": { "type": "string", "enum": ["organizer", "traveler"] },
+        "budgetLimit": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["memberId", "tripId", "displayName", "mascotId", "role", "budgetLimit", "createdAt", "updatedAt"]
+    },
+    "ItineraryItem": {
+      "title": "ItineraryItem",
+      "description": "Scheduled flight, train, stay, or activity that auto-syncs with Splitwise expenses.",
+      "type": "object",
+      "properties": {
+        "itemId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "tripId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "category": { "type": "string", "enum": ["flight", "train", "lodging", "activity", "dining", "transport"] },
+        "dateTime": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "location": { "type": "string", "minLength": 0, "maxLength": 140 },
+        "notes": { "type": "string", "minLength": 0, "maxLength": 600 },
+        "reminderMinutesBefore": { "type": "number" },
+        "cost": { "type": "number" },
+        "paidByMemberId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "splitMethod": { "type": "string", "enum": ["equal", "exact", "percentage"] },
+        "linkedExpenseId": { "type": "string", "minLength": 0, "maxLength": 128 },
+        "status": { "type": "string", "enum": ["scheduled", "boarding", "completed"] },
+        "createdBy": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["itemId", "tripId", "title", "category", "dateTime", "location", "notes", "reminderMinutesBefore", "cost", "paidByMemberId", "splitMethod", "linkedExpenseId", "status", "createdBy", "createdAt", "updatedAt"]
+    },
+    "ExpenseItem": {
+      "title": "ExpenseItem",
+      "description": "Shared group expense or settlement synced with the Splitwise ledger.",
+      "type": "object",
+      "properties": {
+        "expenseId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "tripId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "category": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "amount": { "type": "number" },
+        "currency": { "type": "string", "minLength": 3, "maxLength": 8 },
+        "paidByMemberId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "splitMethod": { "type": "string", "enum": ["equal", "exact", "percentage", "settlement"] },
+        "shares": { "type": "array" },
+        "linkedItineraryId": { "type": "string", "minLength": 0, "maxLength": 128 },
+        "date": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "createdBy": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["expenseId", "tripId", "title", "category", "amount", "currency", "paidByMemberId", "splitMethod", "shares", "linkedItineraryId", "date", "createdBy", "createdAt", "updatedAt"]
+    },
+    "EncryptedDocument": {
+      "title": "EncryptedDocument",
+      "description": "Client-side AES-GCM encrypted travel document or insurance message.",
+      "type": "object",
+      "properties": {
+        "docId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "tripId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "senderUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "senderName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "docCategory": { "type": "string", "enum": ["passport", "visa", "insurance", "customs", "ticket", "note"] },
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "ciphertext": { "type": "string", "minLength": 1, "maxLength": 8000 },
+        "iv": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["docId", "tripId", "senderUid", "senderName", "docCategory", "title", "ciphertext", "iv", "createdAt", "updatedAt"]
+    },
+    "OfflineMapPack": {
+      "title": "OfflineMapPack",
+      "description": "Cached coordinates, tourist pins, and offline map region metadata for a trip.",
+      "type": "object",
+      "properties": {
+        "packId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "tripId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "destination": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "centerLat": { "type": "number" },
+        "centerLng": { "type": "number" },
+        "zoomLevel": { "type": "number" },
+        "pins": { "type": "array" },
+        "downloadedByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "sizeKb": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["packId", "tripId", "destination", "centerLat", "centerLng", "zoomLevel", "pins", "downloadedByUid", "sizeKb", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Public-safe user profile and mascot preferences."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivateInfo" },
+      "description": "Isolated user PII (email)."
+    },
+    "/users/{userId}/billing/{docId}": {
+      "schema": { "$ref": "#/entities/UserBilling" },
+      "description": "User licensing, monthly sync, and lifetime access state."
+    },
+    "/trips/{tripId}": {
+      "schema": { "$ref": "#/entities/Trip" },
+      "description": "Collaborative travel trips owned or joined by up to 5 members."
+    },
+    "/trips/{tripId}/members/{memberId}": {
+      "schema": { "$ref": "#/entities/TripMember" },
+      "description": "Travelers and individual budget limits for a trip."
+    },
+    "/trips/{tripId}/itinerary/{itemId}": {
+      "schema": { "$ref": "#/entities/ItineraryItem" },
+      "description": "Trip itinerary items synced with Splitwise expenses."
+    },
+    "/trips/{tripId}/expenses/{expenseId}": {
+      "schema": { "$ref": "#/entities/ExpenseItem" },
+      "description": "Shared group expenses and settlements."
+    },
+    "/trips/{tripId}/encryptedDocs/{docId}": {
+      "schema": { "$ref": "#/entities/EncryptedDocument" },
+      "description": "End-to-end AES-GCM encrypted travel documents and insurance notices."
+    },
+    "/trips/{tripId}/offlinePacks/{packId}": {
+      "schema": { "$ref": "#/entities/OfflineMapPack" },
+      "description": "Offline map packs and landmark coordinates for remote navigation."
+    }
+  }
+}

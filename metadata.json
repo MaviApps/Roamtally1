@@ -1,0 +1,8 @@
+{
+  "name": "MAVI Travel & Split",
+  "description": "Collaborative Splitwise expense sharing and travel planning with live weather, flight reminders, encrypted document sharing, offline maps, and customizable travel mascots.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
